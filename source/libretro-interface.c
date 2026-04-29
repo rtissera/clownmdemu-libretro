@@ -1180,6 +1180,43 @@ bool retro_unserialize(const void* const data, const size_t size)
 	return true;
 }
 
+/* Megadrive Studio M4: thin trampolines for LIBRA_MEMORY_DEBUG_API. The
+   fn-pointer table is filled in at .so load time and never mutated. */
+static void libra_debug_request_halt(void)
+{
+	Clown68000_RequestHalt(&clownmdemu.m68k);
+}
+
+static void libra_debug_clear_halt_request(void)
+{
+	Clown68000_ClearHaltRequest(&clownmdemu.m68k);
+}
+
+/* The public libra_md_debug_api uses fixed-width-ish C types so external
+   callers don't have to know clowncommon's cc_uXf typedefs. The cast goes
+   through (void*) to silence -Wcast-function-type; the underlying calls
+   are ABI-equivalent on every libretro target (cc_u32f = unsigned long,
+   cc_u8f = unsigned int, cc_bool = unsigned char). */
+static void libra_debug_set_breakpoint_callback(int (*cb)(void *userdata, unsigned long pc), void *userdata)
+{
+	Clown68000_SetBreakpointCallback(&clownmdemu.m68k, (Clown68000_BreakpointCallback)(void(*)(void))cb, userdata);
+}
+
+static void libra_debug_set_watchpoint_callback(int (*cb)(void *userdata, unsigned long addr, unsigned char size, int is_write, unsigned long value), void *userdata)
+{
+	Clown68000_SetWatchpointCallback(&clownmdemu.m68k, (Clown68000_WatchpointCallback)(void(*)(void))cb, userdata);
+}
+
+static const struct libra_md_debug_api libra_debug_api_table = {
+	libra_debug_request_halt,
+	libra_debug_clear_halt_request,
+	libra_debug_set_breakpoint_callback,
+	libra_debug_set_watchpoint_callback,
+};
+
+/* Refreshed on each LIBRA_MEMORY_Z80_BUS query: bit 0 = bus_requested, bit 1 = reset_held. */
+static unsigned char libra_z80_bus_flags;
+
 void* retro_get_memory_data(const unsigned int id)
 {
 	switch (id)
@@ -1208,6 +1245,16 @@ void* retro_get_memory_data(const unsigned int id)
 
 		case LIBRA_MEMORY_Z80:
 			return &clownmdemu.z80;
+
+		case LIBRA_MEMORY_Z80_RAM:
+			return clownmdemu.state.z80.ram;
+
+		case LIBRA_MEMORY_Z80_BUS:
+			libra_z80_bus_flags = (unsigned char)((clownmdemu.state.z80.bus_requested ? 1u : 0u) | (clownmdemu.state.z80.reset_held ? 2u : 0u));
+			return &libra_z80_bus_flags;
+
+		case LIBRA_MEMORY_DEBUG_API:
+			return (void*)&libra_debug_api_table;
 	}
 
 	return NULL;
@@ -1241,6 +1288,15 @@ size_t retro_get_memory_size(const unsigned int id)
 
 		case LIBRA_MEMORY_Z80:
 			return sizeof(clownmdemu.z80);
+
+		case LIBRA_MEMORY_Z80_RAM:
+			return sizeof(clownmdemu.state.z80.ram);
+
+		case LIBRA_MEMORY_Z80_BUS:
+			return sizeof(libra_z80_bus_flags);
+
+		case LIBRA_MEMORY_DEBUG_API:
+			return sizeof(libra_debug_api_table);
 	}
 
 	return 0;
