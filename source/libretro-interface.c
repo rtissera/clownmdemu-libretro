@@ -19,6 +19,7 @@
 
 #include "clowncd-callbacks.h"
 #include "file-io.h"
+#include "libra-extended-memory.h"
 #include "options.h"
 
 #define FRAMEBUFFER_WIDTH VDP_MAX_SCANLINE_WIDTH
@@ -1191,6 +1192,22 @@ void* retro_get_memory_data(const unsigned int id)
 
 		case RETRO_MEMORY_VIDEO_RAM:
 			return clownmdemu.vdp.state.vram;
+
+		/* libra extended memory IDs (out of band of standard libretro). */
+		case LIBRA_MEMORY_CRAM:
+			return clownmdemu.vdp.state.cram;
+
+		case LIBRA_MEMORY_VSRAM:
+			return clownmdemu.vdp.state.vsram;
+
+		case LIBRA_MEMORY_VDP_STATE:
+			return &clownmdemu.vdp.state;
+
+		case LIBRA_MEMORY_M68K:
+			return &clownmdemu.m68k;
+
+		case LIBRA_MEMORY_Z80:
+			return &clownmdemu.z80;
 	}
 
 	return NULL;
@@ -1208,6 +1225,22 @@ size_t retro_get_memory_size(const unsigned int id)
 
 		case RETRO_MEMORY_VIDEO_RAM:
 			return sizeof(clownmdemu.vdp.state.vram);
+
+		/* libra extended memory IDs (out of band of standard libretro). */
+		case LIBRA_MEMORY_CRAM:
+			return sizeof(clownmdemu.vdp.state.cram);
+
+		case LIBRA_MEMORY_VSRAM:
+			return sizeof(clownmdemu.vdp.state.vsram);
+
+		case LIBRA_MEMORY_VDP_STATE:
+			return sizeof(clownmdemu.vdp.state);
+
+		case LIBRA_MEMORY_M68K:
+			return sizeof(clownmdemu.m68k);
+
+		case LIBRA_MEMORY_Z80:
+			return sizeof(clownmdemu.z80);
 	}
 
 	return 0;
